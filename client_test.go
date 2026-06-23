@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -34,17 +35,19 @@ func TestNewRequiresAPIKey(t *testing.T) {
 func TestScanTextRequestConstructionAndDecode(t *testing.T) {
 	var gotPath, gotMethod, gotKey string
 	var gotBody ScanTextRequest
-	httpClient := roundTripClient(func(r *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotMethod = r.Method
 		gotKey = r.Header.Get("X-OAI-API-KEY")
 		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
 			t.Fatal(err)
 		}
-		return jsonResponse(http.StatusOK, `{"scan_id":"scan_123","status":"completed","credits_used":1.25}`), nil
-	})
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"scan_id":"scan_123","status":"completed","credits_used":1.25}`))
+	}))
+	defer server.Close()
 
-	c, err := New(WithAPIKey("test-key"), WithBaseURL("https://originality.test"), WithHTTPClient(httpClient))
+	c, err := New(WithAPIKey("test-key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,8 +55,8 @@ func TestScanTextRequestConstructionAndDecode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotMethod != http.MethodPost || gotPath != "/scan" {
-		t.Fatalf("request = %s %s, want POST /scan", gotMethod, gotPath)
+	if gotMethod != http.MethodPost || gotPath != "/api/v1/scan/ai" {
+		t.Fatalf("request = %s %s, want POST /api/v1/scan/ai", gotMethod, gotPath)
 	}
 	if gotKey != "test-key" {
 		t.Fatalf("auth header = %q, want test-key", gotKey)
@@ -91,14 +94,17 @@ func TestEnvelopeDecode(t *testing.T) {
 
 func TestGetScanRequestConstruction(t *testing.T) {
 	var gotPath, gotMethod string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"scan_123","status":"complete"}`))
+	}))
+	defer server.Close()
 	c, err := New(
 		WithAPIKey("test-key"),
-		WithBaseURL("https://originality.test"),
-		WithHTTPClient(roundTripClient(func(r *http.Request) (*http.Response, error) {
-			gotPath = r.URL.Path
-			gotMethod = r.Method
-			return jsonResponse(http.StatusOK, `{"id":"scan_123","status":"complete"}`), nil
-		})),
+		WithBaseURL(server.URL),
+		WithHTTPClient(server.Client()),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -107,11 +113,60 @@ func TestGetScanRequestConstruction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotMethod != http.MethodGet || gotPath != "/scan/scan_123" {
-		t.Fatalf("request = %s %s, want GET /scan/scan_123", gotMethod, gotPath)
+	if gotMethod != http.MethodGet || gotPath != "/api/v3/scan/scan_123" {
+		t.Fatalf("request = %s %s, want GET /api/v3/scan/scan_123", gotMethod, gotPath)
 	}
 	if res.ID != "scan_123" || res.Status != "complete" {
 		t.Fatalf("response = %+v", res)
+	}
+}
+
+func TestDocumentedOperationsUseExpectedPaths(t *testing.T) {
+	paths := map[string]int{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths[r.Method+" "+r.URL.Path]++
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/scan/url":
+			_, _ = w.Write([]byte(`{"success":true,"url":"https://example.com","credits_used":1}`))
+		case "/api/v1/account/credits/balance":
+			_, _ = w.Write([]byte(`{"balance":25}`))
+		case "/api/v1/account/credits/content_scan_usage":
+			_, _ = w.Write([]byte(`{"usage":[{"contentID":"c1","credits_used":2,"date":"2026-06-22"}]}`))
+		case "/api/v1/account/credits/payments":
+			_, _ = w.Write([]byte(`{"payments":[{"credits":10,"price":"10.00","receipt":"r1","date":"2026-06-22"}]}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	c, err := New(WithAPIKey("test-key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if _, err := c.ScanURL(ctx, &ScanURLRequest{URL: "https://example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreditBalance(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreditUsage(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Payments(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{
+		"POST /api/v1/scan/url",
+		"GET /api/v1/account/credits/balance",
+		"GET /api/v1/account/credits/content_scan_usage",
+		"GET /api/v1/account/credits/payments",
+	} {
+		if paths[key] != 1 {
+			t.Fatalf("%s count = %d, want 1; paths=%#v", key, paths[key], paths)
+		}
 	}
 }
 
@@ -135,6 +190,33 @@ func TestTransportOverrides(t *testing.T) {
 	}
 	if c.httpClient.Timeout != 123*time.Millisecond {
 		t.Fatalf("timeout = %s", c.httpClient.Timeout)
+	}
+}
+
+func TestWithTimeoutPreservesInjectedTransport(t *testing.T) {
+	rt := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusOK, `{"scan_id":"scan_1"}`), nil
+	})
+	httpClient := &http.Client{Transport: rt}
+	c, err := New(
+		WithAPIKey("test-key"),
+		WithHTTPClient(httpClient),
+		WithTimeout(123*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.httpClient == httpClient {
+		t.Fatal("WithTimeout should copy the injected client before mutating it")
+	}
+	if c.httpClient.Transport == nil {
+		t.Fatal("WithTimeout dropped the injected transport")
+	}
+	if c.httpClient.Timeout != 123*time.Millisecond {
+		t.Fatalf("timeout = %s", c.httpClient.Timeout)
+	}
+	if httpClient.Timeout != 0 {
+		t.Fatalf("injected client was mutated: timeout = %s", httpClient.Timeout)
 	}
 }
 
@@ -188,6 +270,9 @@ func TestValidation(t *testing.T) {
 	}
 	if _, err := c.GetScan(context.Background(), ""); !errors.Is(err, ErrBadRequest) {
 		t.Fatalf("GetScan error = %v, want ErrBadRequest", err)
+	}
+	if _, err := c.ScanURL(context.Background(), &ScanURLRequest{}); !errors.Is(err, ErrBadRequest) {
+		t.Fatalf("ScanURL error = %v, want ErrBadRequest", err)
 	}
 }
 

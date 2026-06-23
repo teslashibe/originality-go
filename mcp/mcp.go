@@ -15,7 +15,8 @@ func (Provider) Platform() string { return "originality" }
 
 // Tools returns every Originality.ai MCP tool in registration order.
 func (Provider) Tools() []mcptool.Tool {
-	out := make([]mcptool.Tool, 0, len(scanTools))
+	out := make([]mcptool.Tool, 0, len(scanTools)+len(accountTools))
 	out = append(out, scanTools...)
+	out = append(out, accountTools...)
 	return out
 }

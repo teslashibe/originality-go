@@ -14,9 +14,18 @@ import (
 )
 
 const (
-	defaultBaseURL = "https://api.originality.ai/api/v3"
+	defaultBaseURL = "https://api.originality.ai"
 	defaultTimeout = 30 * time.Second
 	maxBodyBytes   = 10 << 20
+)
+
+const (
+	creditBalancePath = "/api/v1/account/credits/balance"
+	creditUsagePath   = "/api/v1/account/credits/content_scan_usage"
+	paymentsPath      = "/api/v1/account/credits/payments"
+	scanTextPath      = "/api/v1/scan/ai"
+	scanURLPath       = "/api/v1/scan/url"
+	scanResultPath    = "/api/v3/scan/%s"
 )
 
 // Option configures a Client.
@@ -85,11 +94,17 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
-// WithTimeout sets the timeout on the default HTTP client.
+// WithTimeout sets the timeout on the configured HTTP client.
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) {
 		if timeout > 0 {
-			c.httpClient = &http.Client{Timeout: timeout}
+			if c.httpClient == nil {
+				c.httpClient = &http.Client{Timeout: timeout}
+				return
+			}
+			clone := *c.httpClient
+			clone.Timeout = timeout
+			c.httpClient = &clone
 		}
 	}
 }
@@ -100,7 +115,19 @@ func (c *Client) ScanText(ctx context.Context, req *ScanTextRequest) (*ScanRespo
 		return nil, fmt.Errorf("%w: content is required", ErrBadRequest)
 	}
 	var out ScanResponse
-	if err := c.postJSON(ctx, "/scan", req, &out); err != nil {
+	if err := c.postJSON(ctx, scanTextPath, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ScanURL starts an Originality.ai URL AI-detection scan.
+func (c *Client) ScanURL(ctx context.Context, req *ScanURLRequest) (*URLScanResponse, error) {
+	if req == nil || strings.TrimSpace(req.URL) == "" {
+		return nil, fmt.Errorf("%w: url is required", ErrBadRequest)
+	}
+	var out URLScanResponse
+	if err := c.postJSON(ctx, scanURLPath, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -112,7 +139,34 @@ func (c *Client) GetScan(ctx context.Context, scanID string) (*ScanResponse, err
 		return nil, fmt.Errorf("%w: scan id is required", ErrBadRequest)
 	}
 	var out ScanResponse
-	if err := c.getJSON(ctx, "/scan/"+url.PathEscape(scanID), &out); err != nil {
+	if err := c.getJSON(ctx, fmt.Sprintf(scanResultPath, url.PathEscape(scanID)), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreditBalance returns the current credit balance.
+func (c *Client) CreditBalance(ctx context.Context) (*CreditBalanceResponse, error) {
+	var out CreditBalanceResponse
+	if err := c.getJSON(ctx, creditBalancePath, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreditUsage returns credit usage for recent scans.
+func (c *Client) CreditUsage(ctx context.Context) (*CreditUsageResponse, error) {
+	var out CreditUsageResponse
+	if err := c.getJSON(ctx, creditUsagePath, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Payments returns recent credit purchases.
+func (c *Client) Payments(ctx context.Context) (*PaymentsResponse, error) {
+	var out PaymentsResponse
+	if err := c.getJSON(ctx, paymentsPath, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -206,6 +260,14 @@ func attachRaw(raw []byte, out any) {
 	}
 	switch v := out.(type) {
 	case *ScanResponse:
+		v.Raw = m
+	case *URLScanResponse:
+		v.Raw = m
+	case *CreditBalanceResponse:
+		v.Raw = m
+	case *CreditUsageResponse:
+		v.Raw = m
+	case *PaymentsResponse:
 		v.Raw = m
 	}
 }

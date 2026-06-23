@@ -13,6 +13,11 @@ type ScanTextInput struct {
 	Title   string `json:"title,omitempty" jsonschema:"description=optional title or document label"`
 }
 
+// ScanURLInput is the typed input for originality_scan_url.
+type ScanURLInput struct {
+	URL string `json:"url" jsonschema:"description=webpage URL to scan,required"`
+}
+
 // ScanIDInput is the typed input for originality_get_scan.
 type ScanIDInput struct {
 	ScanID string `json:"scan_id" jsonschema:"description=Originality.ai scan identifier,required"`
@@ -25,6 +30,10 @@ func scanText(ctx context.Context, c *originality.Client, in ScanTextInput) (any
 	})
 }
 
+func scanURL(ctx context.Context, c *originality.Client, in ScanURLInput) (any, error) {
+	return c.ScanURL(ctx, &originality.ScanURLRequest{URL: in.URL})
+}
+
 func getScan(ctx context.Context, c *originality.Client, in ScanIDInput) (any, error) {
 	return c.GetScan(ctx, in.ScanID)
 }
@@ -35,6 +44,12 @@ var scanTools = []mcptool.Tool{
 		"Run an Originality.ai text scan and return structured provider signals",
 		"ScanText",
 		scanText,
+	),
+	mcptool.Define[*originality.Client, ScanURLInput](
+		"originality_scan_url",
+		"Run an Originality.ai URL AI-detection scan",
+		"ScanURL",
+		scanURL,
 	),
 	mcptool.Define[*originality.Client, ScanIDInput](
 		"originality_get_scan",

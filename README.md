@@ -46,7 +46,6 @@ func main() {
 
     res, err := client.ScanText(context.Background(), &originality.ScanTextRequest{
         Content: "Text to check with Originality.ai.",
-        Title:   "example",
     })
     if err != nil {
         log.Fatal(err)
@@ -58,18 +57,22 @@ func main() {
 
 ## API Surface
 
-The client currently exposes the documented text scan and scan-result flows:
+The client exposes the documented connector-backed Originality.ai API surface:
 
 ```go
-client.ScanText(ctx, req) // text scan / AI detection flow
-client.GetScan(ctx, id)   // fetch scan results
+client.ScanText(ctx, req)       // POST /api/v1/scan/ai
+client.ScanURL(ctx, req)        // POST /api/v1/scan/url
+client.GetScan(ctx, id)         // GET /api/v3/scan/{id}
+client.CreditBalance(ctx)       // GET /api/v1/account/credits/balance
+client.CreditUsage(ctx)         // GET /api/v1/account/credits/content_scan_usage
+client.Payments(ctx)            // GET /api/v1/account/credits/payments
 ```
 
-This package intentionally does not expose separate plagiarism, readability,
-grammar, factuality, optimization, account-credit, or scan-status methods until
-their exact endpoint paths, request fields, and response models are verified
-from the official Originality.ai API documentation. Add those as separate
-exported methods and MCP tools only after that verification.
+The v1 paths come from the Microsoft Power Platform Originality connector
+Swagger. `GetScan` uses the official v3 scan-results page shape recorded in
+`DOCS_VERIFICATION.md`. Plagiarism, readability, grammar, factuality,
+optimization, and batch-scan tools should be added only after their exact
+endpoint paths and schemas are directly verified.
 
 Detector and quality scores are API-provided signals. Do not present them as
 definitive authorship proof.
@@ -80,7 +83,7 @@ definitive authorship proof.
 client, err := originality.New(
     originality.WithAPIKey(os.Getenv("ORIGINALITY_API_KEY")),
     originality.WithTimeout(30*time.Second),
-    originality.WithBaseURL("https://api.originality.ai/api/v3"),
+    originality.WithBaseURL("https://api.originality.ai"),
     originality.WithHTTPClient(customHTTPClient),
 )
 ```
@@ -130,7 +133,11 @@ for _, tool := range provider.Tools() {
 Tools use the `originality_` prefix:
 
 - `originality_scan_text`
+- `originality_scan_url`
 - `originality_get_scan`
+- `originality_credit_balance`
+- `originality_credit_usage`
+- `originality_payments`
 
 ## Credits And Cost
 

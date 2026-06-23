@@ -8,3 +8,5 @@ Mocked verification:
 ```bash
 go test ./...
 ```
+
+Result: passed locally on the PR branch.

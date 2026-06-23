@@ -55,7 +55,16 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	requested := map[string]bool{}
 	httpClient := roundTripClient(func(r *http.Request) (*http.Response, error) {
 		requested[r.URL.Path] = true
-		return jsonResponse(http.StatusOK, `{"scan_id":"scan_1","status":"completed"}`), nil
+		switch r.URL.Path {
+		case "/api/v1/account/credits/balance":
+			return jsonResponse(http.StatusOK, `{"balance":42}`), nil
+		case "/api/v1/account/credits/content_scan_usage":
+			return jsonResponse(http.StatusOK, `{"usage":[]}`), nil
+		case "/api/v1/account/credits/payments":
+			return jsonResponse(http.StatusOK, `{"payments":[]}`), nil
+		default:
+			return jsonResponse(http.StatusOK, `{"scan_id":"scan_1","status":"completed"}`), nil
+		}
 	})
 
 	client, err := originality.New(
@@ -83,10 +92,23 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	}
 
 	invoke("originality_scan_text", map[string]any{"content": "sample text"})
+	invoke("originality_scan_url", map[string]any{"url": "https://example.com"})
 	invoke("originality_get_scan", map[string]any{"scan_id": "scan_1"})
+	invoke("originality_credit_balance", map[string]any{})
+	invoke("originality_credit_usage", map[string]any{})
+	invoke("originality_payments", map[string]any{})
 
-	if len(requested) != 2 || !requested["/scan"] || !requested["/scan/scan_1"] {
-		t.Fatalf("scan tools should use documented scan paths; got %#v", requested)
+	for _, path := range []string{
+		"/api/v1/scan/ai",
+		"/api/v1/scan/url",
+		"/api/v3/scan/scan_1",
+		"/api/v1/account/credits/balance",
+		"/api/v1/account/credits/content_scan_usage",
+		"/api/v1/account/credits/payments",
+	} {
+		if !requested[path] {
+			t.Fatalf("tool path %s was not requested; got %#v", path, requested)
+		}
 	}
 }
 
