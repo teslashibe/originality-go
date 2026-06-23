@@ -55,14 +55,7 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	requested := map[string]bool{}
 	httpClient := roundTripClient(func(r *http.Request) (*http.Response, error) {
 		requested[r.URL.Path] = true
-		switch {
-		case strings.Contains(r.URL.Path, "credits"):
-			return jsonResponse(http.StatusOK, `{"credits":42}`), nil
-		case strings.Contains(r.URL.Path, "status"):
-			return jsonResponse(http.StatusOK, `{"scan_id":"scan_1","status":"completed"}`), nil
-		default:
-			return jsonResponse(http.StatusOK, `{"scan_id":"scan_1","status":"completed"}`), nil
-		}
+		return jsonResponse(http.StatusOK, `{"scan_id":"scan_1","status":"completed"}`), nil
 	})
 
 	client, err := originality.New(
@@ -90,29 +83,14 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	}
 
 	invoke("originality_scan_text", map[string]any{"content": "sample text"})
-	invoke("originality_get_scan", map[string]any{"scan_id": "scan_1"})
-	invoke("originality_scan_status", map[string]any{"scan_id": "scan_1"})
 	invoke("originality_check_plagiarism", map[string]any{"content": "sample text"})
 	invoke("originality_check_readability", map[string]any{"content": "sample text"})
 	invoke("originality_check_grammar", map[string]any{"content": "sample text"})
 	invoke("originality_check_factuality", map[string]any{"content": "sample text"})
 	invoke("originality_optimize_content", map[string]any{"content": "sample text"})
-	invoke("originality_account_credits", map[string]any{})
 
-	for _, path := range []string{
-		"/scan/ai",
-		"/scan/scan_1",
-		"/scan/scan_1/status",
-		"/scan/plagiarism",
-		"/scan/readability",
-		"/scan/grammar",
-		"/scan/factuality",
-		"/scan/optimization",
-		"/account/credits",
-	} {
-		if !requested[path] {
-			t.Fatalf("tool path %s was not requested; got %#v", path, requested)
-		}
+	if len(requested) != 1 || !requested["/scan/ai"] {
+		t.Fatalf("tools should use /scan/ai only; got %#v", requested)
 	}
 }
 

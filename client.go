@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -106,77 +105,50 @@ func (c *Client) ScanText(ctx context.Context, req *ScanTextRequest) (*ScanRespo
 	return &out, nil
 }
 
-// GetScan returns a scan by ID.
-func (c *Client) GetScan(ctx context.Context, scanID string) (*ScanResponse, error) {
-	if strings.TrimSpace(scanID) == "" {
-		return nil, fmt.Errorf("%w: scan id is required", ErrBadRequest)
-	}
-	var out ScanResponse
-	if err := c.getJSON(ctx, "/scan/"+url.PathEscape(scanID), &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// ScanStatus returns asynchronous scan status by ID.
-func (c *Client) ScanStatus(ctx context.Context, scanID string) (*ScanStatusResponse, error) {
-	if strings.TrimSpace(scanID) == "" {
-		return nil, fmt.Errorf("%w: scan id is required", ErrBadRequest)
-	}
-	var out ScanStatusResponse
-	if err := c.getJSON(ctx, "/scan/"+url.PathEscape(scanID)+"/status", &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
 // CheckPlagiarism runs a plagiarism/similarity check for text.
 func (c *Client) CheckPlagiarism(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	return c.textCheck(ctx, "/scan/plagiarism", req)
+	plagiarism := true
+	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Plagiarism = &plagiarism })
 }
 
 // CheckReadability runs a readability check for text.
 func (c *Client) CheckReadability(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	return c.textCheck(ctx, "/scan/readability", req)
+	readability := true
+	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Readability = &readability })
 }
 
 // CheckGrammar runs a grammar and spelling check for text.
 func (c *Client) CheckGrammar(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	return c.textCheck(ctx, "/scan/grammar", req)
+	grammar := true
+	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Grammar = &grammar })
 }
 
 // CheckFactuality runs a factual-claim check for text.
 func (c *Client) CheckFactuality(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	return c.textCheck(ctx, "/scan/factuality", req)
+	factuality := true
+	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Factuality = &factuality })
 }
 
 // OptimizeContent runs a content-optimization check for text.
 func (c *Client) OptimizeContent(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	return c.textCheck(ctx, "/scan/optimization", req)
+	optimization := true
+	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Optimization = &optimization })
 }
 
-// AccountCredits returns account credit/balance information.
-func (c *Client) AccountCredits(ctx context.Context) (*AccountCreditsResponse, error) {
-	var out AccountCreditsResponse
-	if err := c.getJSON(ctx, "/account/credits", &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-func (c *Client) textCheck(ctx context.Context, path string, req *TextCheckRequest) (*ScanResponse, error) {
+func (c *Client) textCheck(ctx context.Context, req *TextCheckRequest, configure func(*ScanTextRequest)) (*ScanResponse, error) {
 	if req == nil || strings.TrimSpace(req.Content) == "" {
 		return nil, fmt.Errorf("%w: content is required", ErrBadRequest)
 	}
-	var out ScanResponse
-	if err := c.postJSON(ctx, path, req, &out); err != nil {
-		return nil, err
+	scan := &ScanTextRequest{
+		Content:  req.Content,
+		Title:    req.Title,
+		Metadata: req.Metadata,
+		Options:  req.Options,
 	}
-	return &out, nil
-}
-
-func (c *Client) getJSON(ctx context.Context, path string, out any) error {
-	return c.doJSON(ctx, http.MethodGet, path, nil, out)
+	if configure != nil {
+		configure(scan)
+	}
+	return c.ScanText(ctx, scan)
 }
 
 func (c *Client) postJSON(ctx context.Context, path string, in any, out any) error {
@@ -263,10 +235,6 @@ func attachRaw(raw []byte, out any) {
 	}
 	switch v := out.(type) {
 	case *ScanResponse:
-		v.Raw = m
-	case *ScanStatusResponse:
-		v.Raw = m
-	case *AccountCreditsResponse:
 		v.Raw = m
 	}
 }

@@ -63,15 +63,18 @@ Originality.ai REST API:
 
 ```go
 client.ScanText(ctx, req)          // combined text scan / AI detection flow
-client.GetScan(ctx, scanID)        // fetch a scan result
-client.ScanStatus(ctx, scanID)     // fetch async scan status
 client.CheckPlagiarism(ctx, req)   // plagiarism/similarity signals
 client.CheckReadability(ctx, req)  // readability signals
 client.CheckGrammar(ctx, req)      // grammar and spelling signals
 client.CheckFactuality(ctx, req)   // factual-claim signals
 client.OptimizeContent(ctx, req)   // content optimization signals
-client.AccountCredits(ctx)         // account credit/balance information
 ```
+
+The capability-specific helpers call the documented text scan route with the
+corresponding option flag. They do not invent separate provider endpoints for
+plagiarism, readability, grammar, factuality, optimization, account credits, or
+scan polling. Add those as separate exported methods only after verifying the
+official API exposes stable routes for them.
 
 Detector and quality scores are API-provided signals. Do not present them as
 definitive authorship proof.
@@ -132,20 +135,17 @@ for _, tool := range provider.Tools() {
 Tools use the `originality_` prefix:
 
 - `originality_scan_text`
-- `originality_get_scan`
-- `originality_scan_status`
 - `originality_check_plagiarism`
 - `originality_check_readability`
 - `originality_check_grammar`
 - `originality_check_factuality`
 - `originality_optimize_content`
-- `originality_account_credits`
 
 ## Credits And Cost
 
 Originality.ai operations can consume account credits. Inspect response fields
-such as `credits_used` where returned by the API, and use
-`AccountCredits` / `originality_account_credits` before large batches.
+such as `credits_used` where returned by the API, and run large batches behind
+your own rate and budget controls.
 
 ## Testing
 

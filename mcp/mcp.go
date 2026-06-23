@@ -21,8 +21,7 @@ func (Provider) Tools() []mcptool.Tool {
 			len(readabilityTools)+
 			len(grammarTools)+
 			len(factualityTools)+
-			len(optimizationTools)+
-			len(accountTools),
+			len(optimizationTools),
 	)
 	out = append(out, scanTools...)
 	out = append(out, plagiarismTools...)
@@ -30,6 +29,5 @@ func (Provider) Tools() []mcptool.Tool {
 	out = append(out, grammarTools...)
 	out = append(out, factualityTools...)
 	out = append(out, optimizationTools...)
-	out = append(out, accountTools...)
 	return out
 }

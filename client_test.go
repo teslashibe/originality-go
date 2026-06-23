@@ -80,7 +80,7 @@ func TestEnvelopeDecode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := c.GetScan(context.Background(), "wrapped")
+	res, err := c.ScanText(context.Background(), &ScanTextRequest{Content: "wrapped"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestErrorMapping(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = c.AccountCredits(context.Background())
+			_, err = c.ScanText(context.Background(), &ScanTextRequest{Content: "hello"})
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("error = %v, want %v", err, tc.want)
 			}
@@ -159,9 +159,6 @@ func TestValidation(t *testing.T) {
 	}
 	if _, err := c.ScanText(context.Background(), &ScanTextRequest{}); !errors.Is(err, ErrBadRequest) {
 		t.Fatalf("ScanText error = %v, want ErrBadRequest", err)
-	}
-	if _, err := c.GetScan(context.Background(), ""); !errors.Is(err, ErrBadRequest) {
-		t.Fatalf("GetScan error = %v, want ErrBadRequest", err)
 	}
 }
 

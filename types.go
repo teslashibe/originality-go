@@ -72,26 +72,6 @@ type PlagiarismMatch struct {
 	MatchedText string  `json:"matched_text,omitempty"`
 }
 
-// ScanStatusResponse describes asynchronous scan progress.
-type ScanStatusResponse struct {
-	ID        string         `json:"id,omitempty"`
-	ScanID    string         `json:"scan_id,omitempty"`
-	Status    string         `json:"status,omitempty"`
-	Progress  float64        `json:"progress,omitempty"`
-	Message   string         `json:"message,omitempty"`
-	CreatedAt string         `json:"created_at,omitempty"`
-	UpdatedAt string         `json:"updated_at,omitempty"`
-	Raw       map[string]any `json:"raw,omitempty"`
-}
-
-// AccountCreditsResponse describes account credit/balance state.
-type AccountCreditsResponse struct {
-	Credits float64        `json:"credits,omitempty"`
-	Balance float64        `json:"balance,omitempty"`
-	Plan    string         `json:"plan,omitempty"`
-	Raw     map[string]any `json:"raw,omitempty"`
-}
-
 type responseEnvelope struct {
 	Data    json.RawMessage `json:"data"`
 	Result  json.RawMessage `json:"result"`
