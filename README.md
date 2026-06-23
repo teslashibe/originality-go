@@ -1,8 +1,8 @@
 # originality-go
 
 Go client and MCP tools for the Originality.ai API. The root package is a
-stdlib-first REST client; the `mcp` package exposes the same useful client
-operations as typed MCP tools for agent hosts.
+stdlib-first REST client; the `mcp` package exposes useful client operations as
+typed MCP tools for agent hosts.
 
 ```bash
 go get github.com/teslashibe/originality-go
@@ -58,23 +58,17 @@ func main() {
 
 ## API Surface
 
-The client models production text-quality flows from the official
-Originality.ai REST API:
+The client currently exposes the documented text scan flow:
 
 ```go
-client.ScanText(ctx, req)          // combined text scan / AI detection flow
-client.CheckPlagiarism(ctx, req)   // plagiarism/similarity signals
-client.CheckReadability(ctx, req)  // readability signals
-client.CheckGrammar(ctx, req)      // grammar and spelling signals
-client.CheckFactuality(ctx, req)   // factual-claim signals
-client.OptimizeContent(ctx, req)   // content optimization signals
+client.ScanText(ctx, req) // text scan / AI detection flow
 ```
 
-The capability-specific helpers call the documented text scan route with the
-corresponding option flag. They do not invent separate provider endpoints for
-plagiarism, readability, grammar, factuality, optimization, account credits, or
-scan polling. Add those as separate exported methods only after verifying the
-official API exposes stable routes for them.
+This package intentionally does not expose separate plagiarism, readability,
+grammar, factuality, optimization, account-credit, scan-read, or scan-status
+methods until their exact endpoint paths, request fields, and response models
+are verified from the official Originality.ai API documentation. Add those as
+separate exported methods and MCP tools only after that verification.
 
 Detector and quality scores are API-provided signals. Do not present them as
 definitive authorship proof.
@@ -135,11 +129,6 @@ for _, tool := range provider.Tools() {
 Tools use the `originality_` prefix:
 
 - `originality_scan_text`
-- `originality_check_plagiarism`
-- `originality_check_readability`
-- `originality_check_grammar`
-- `originality_check_factuality`
-- `originality_optimize_content`
 
 ## Credits And Cost
 
@@ -161,3 +150,6 @@ An opt-in smoke test can be run when a real key is available:
 export ORIGINALITY_API_KEY="oai_..."
 go test -tags live -run TestLiveScanTextSmoke -v
 ```
+
+Live verification for this change was skipped because `ORIGINALITY_API_KEY` was
+not available in the local environment.

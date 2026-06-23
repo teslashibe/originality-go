@@ -93,7 +93,7 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// ScanText starts a combined text-quality scan.
+// ScanText starts an Originality.ai text scan.
 func (c *Client) ScanText(ctx context.Context, req *ScanTextRequest) (*ScanResponse, error) {
 	if req == nil || strings.TrimSpace(req.Content) == "" {
 		return nil, fmt.Errorf("%w: content is required", ErrBadRequest)
@@ -103,52 +103,6 @@ func (c *Client) ScanText(ctx context.Context, req *ScanTextRequest) (*ScanRespo
 		return nil, err
 	}
 	return &out, nil
-}
-
-// CheckPlagiarism runs a plagiarism/similarity check for text.
-func (c *Client) CheckPlagiarism(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	plagiarism := true
-	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Plagiarism = &plagiarism })
-}
-
-// CheckReadability runs a readability check for text.
-func (c *Client) CheckReadability(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	readability := true
-	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Readability = &readability })
-}
-
-// CheckGrammar runs a grammar and spelling check for text.
-func (c *Client) CheckGrammar(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	grammar := true
-	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Grammar = &grammar })
-}
-
-// CheckFactuality runs a factual-claim check for text.
-func (c *Client) CheckFactuality(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	factuality := true
-	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Factuality = &factuality })
-}
-
-// OptimizeContent runs a content-optimization check for text.
-func (c *Client) OptimizeContent(ctx context.Context, req *TextCheckRequest) (*ScanResponse, error) {
-	optimization := true
-	return c.textCheck(ctx, req, func(scan *ScanTextRequest) { scan.Optimization = &optimization })
-}
-
-func (c *Client) textCheck(ctx context.Context, req *TextCheckRequest, configure func(*ScanTextRequest)) (*ScanResponse, error) {
-	if req == nil || strings.TrimSpace(req.Content) == "" {
-		return nil, fmt.Errorf("%w: content is required", ErrBadRequest)
-	}
-	scan := &ScanTextRequest{
-		Content:  req.Content,
-		Title:    req.Title,
-		Metadata: req.Metadata,
-		Options:  req.Options,
-	}
-	if configure != nil {
-		configure(scan)
-	}
-	return c.ScanText(ctx, scan)
 }
 
 func (c *Client) postJSON(ctx context.Context, path string, in any, out any) error {

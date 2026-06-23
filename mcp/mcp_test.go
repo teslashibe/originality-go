@@ -83,14 +83,9 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	}
 
 	invoke("originality_scan_text", map[string]any{"content": "sample text"})
-	invoke("originality_check_plagiarism", map[string]any{"content": "sample text"})
-	invoke("originality_check_readability", map[string]any{"content": "sample text"})
-	invoke("originality_check_grammar", map[string]any{"content": "sample text"})
-	invoke("originality_check_factuality", map[string]any{"content": "sample text"})
-	invoke("originality_optimize_content", map[string]any{"content": "sample text"})
 
 	if len(requested) != 1 || !requested["/scan/ai"] {
-		t.Fatalf("tools should use /scan/ai only; got %#v", requested)
+		t.Fatalf("tool should use /scan/ai only; got %#v", requested)
 	}
 }
 
