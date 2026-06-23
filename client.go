@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
 
 const (
-	defaultBaseURL = "https://api.originality.ai/api/v1"
+	defaultBaseURL = "https://api.originality.ai/api/v3"
 	defaultTimeout = 30 * time.Second
 	maxBodyBytes   = 10 << 20
 )
@@ -99,10 +100,26 @@ func (c *Client) ScanText(ctx context.Context, req *ScanTextRequest) (*ScanRespo
 		return nil, fmt.Errorf("%w: content is required", ErrBadRequest)
 	}
 	var out ScanResponse
-	if err := c.postJSON(ctx, "/scan/ai", req, &out); err != nil {
+	if err := c.postJSON(ctx, "/scan", req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// GetScan returns a scan result by ID.
+func (c *Client) GetScan(ctx context.Context, scanID string) (*ScanResponse, error) {
+	if strings.TrimSpace(scanID) == "" {
+		return nil, fmt.Errorf("%w: scan id is required", ErrBadRequest)
+	}
+	var out ScanResponse
+	if err := c.getJSON(ctx, "/scan/"+url.PathEscape(scanID), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) getJSON(ctx context.Context, path string, out any) error {
+	return c.doJSON(ctx, http.MethodGet, path, nil, out)
 }
 
 func (c *Client) postJSON(ctx context.Context, path string, in any, out any) error {

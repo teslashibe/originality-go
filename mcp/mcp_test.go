@@ -83,9 +83,10 @@ func TestRepresentativeToolInvocations(t *testing.T) {
 	}
 
 	invoke("originality_scan_text", map[string]any{"content": "sample text"})
+	invoke("originality_get_scan", map[string]any{"scan_id": "scan_1"})
 
-	if len(requested) != 1 || !requested["/scan/ai"] {
-		t.Fatalf("tool should use /scan/ai only; got %#v", requested)
+	if len(requested) != 2 || !requested["/scan"] || !requested["/scan/scan_1"] {
+		t.Fatalf("scan tools should use documented scan paths; got %#v", requested)
 	}
 }
 

@@ -6,5 +6,5 @@ Live Originality.ai verification was skipped for this change because
 Mocked verification:
 
 ```bash
-GOCACHE=$PWD/.gocache go test ./...
+go test ./...
 ```

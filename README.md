@@ -58,17 +58,18 @@ func main() {
 
 ## API Surface
 
-The client currently exposes the documented text scan flow:
+The client currently exposes the documented text scan and scan-result flows:
 
 ```go
 client.ScanText(ctx, req) // text scan / AI detection flow
+client.GetScan(ctx, id)   // fetch scan results
 ```
 
 This package intentionally does not expose separate plagiarism, readability,
-grammar, factuality, optimization, account-credit, scan-read, or scan-status
-methods until their exact endpoint paths, request fields, and response models
-are verified from the official Originality.ai API documentation. Add those as
-separate exported methods and MCP tools only after that verification.
+grammar, factuality, optimization, account-credit, or scan-status methods until
+their exact endpoint paths, request fields, and response models are verified
+from the official Originality.ai API documentation. Add those as separate
+exported methods and MCP tools only after that verification.
 
 Detector and quality scores are API-provided signals. Do not present them as
 definitive authorship proof.
@@ -79,7 +80,7 @@ definitive authorship proof.
 client, err := originality.New(
     originality.WithAPIKey(os.Getenv("ORIGINALITY_API_KEY")),
     originality.WithTimeout(30*time.Second),
-    originality.WithBaseURL("https://api.originality.ai/api/v1"),
+    originality.WithBaseURL("https://api.originality.ai/api/v3"),
     originality.WithHTTPClient(customHTTPClient),
 )
 ```
@@ -129,6 +130,7 @@ for _, tool := range provider.Tools() {
 Tools use the `originality_` prefix:
 
 - `originality_scan_text`
+- `originality_get_scan`
 
 ## Credits And Cost
 

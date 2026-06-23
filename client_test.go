@@ -52,8 +52,8 @@ func TestScanTextRequestConstructionAndDecode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotMethod != http.MethodPost || gotPath != "/scan/ai" {
-		t.Fatalf("request = %s %s, want POST /scan/ai", gotMethod, gotPath)
+	if gotMethod != http.MethodPost || gotPath != "/scan" {
+		t.Fatalf("request = %s %s, want POST /scan", gotMethod, gotPath)
 	}
 	if gotKey != "test-key" {
 		t.Fatalf("auth header = %q, want test-key", gotKey)
@@ -85,6 +85,32 @@ func TestEnvelopeDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res.ScanID != "wrapped" || res.Status != "queued" {
+		t.Fatalf("response = %+v", res)
+	}
+}
+
+func TestGetScanRequestConstruction(t *testing.T) {
+	var gotPath, gotMethod string
+	c, err := New(
+		WithAPIKey("test-key"),
+		WithBaseURL("https://originality.test"),
+		WithHTTPClient(roundTripClient(func(r *http.Request) (*http.Response, error) {
+			gotPath = r.URL.Path
+			gotMethod = r.Method
+			return jsonResponse(http.StatusOK, `{"id":"scan_123","status":"complete"}`), nil
+		})),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.GetScan(context.Background(), "scan_123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodGet || gotPath != "/scan/scan_123" {
+		t.Fatalf("request = %s %s, want GET /scan/scan_123", gotMethod, gotPath)
+	}
+	if res.ID != "scan_123" || res.Status != "complete" {
 		t.Fatalf("response = %+v", res)
 	}
 }
@@ -159,6 +185,9 @@ func TestValidation(t *testing.T) {
 	}
 	if _, err := c.ScanText(context.Background(), &ScanTextRequest{}); !errors.Is(err, ErrBadRequest) {
 		t.Fatalf("ScanText error = %v, want ErrBadRequest", err)
+	}
+	if _, err := c.GetScan(context.Background(), ""); !errors.Is(err, ErrBadRequest) {
+		t.Fatalf("GetScan error = %v, want ErrBadRequest", err)
 	}
 }
 
